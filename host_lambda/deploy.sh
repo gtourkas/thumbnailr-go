@@ -1,0 +1,2 @@
+sam package --template-file template.yaml --s3-bucket thumbnailr-deploy-acc --output-template-file packaged.yaml
+sam deploy --stack-name thumbnailr --template-file packaged.yaml --capabilities CAPABILITY_IAM

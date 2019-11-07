@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'thumbnailr
+
+  '
+Resources:
+  QuotaDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: thumbnailr-quota
+      AttributeDefinitions:
+      - AttributeName: UserID
+        AttributeType: S
+      KeySchema:
+      - AttributeName: UserID
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+  ThumbnailsDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: thumbnailr-thumbnails
+      AttributeDefinitions:
+      - AttributeName: ID
+        AttributeType: S
+      KeySchema:
+      - AttributeName: ID
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+  ThumbnailStoreS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: thumbnailr-thumbnailstore
+  PhotoStoreS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: thumbnailr-photostore
+  CreationRequestsSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: thumbnailr-creation-requests
+  CheckCreationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://thumbnailr-deploy-acc/d64e94524fd0403906f8241d9e091681
+      Handler: main
+      Runtime: go1.x
+      Events:
+        CheckCreationEvent:
+          Type: Api
+          Properties:
+            Path: /check_creation
+            Method: GET
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: ThumbnailsDynamoDBTable
+  GetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://thumbnailr-deploy-acc/d10e38d72260a8449d78fb0fbbc789a6
+      Handler: main
+      Runtime: go1.x
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /get
+            Method: GET
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: ThumbnailsDynamoDBTable
+      - S3ReadPolicy:
+          BucketName:
+            Ref: ThumbnailStoreS3Bucket
+  RequestCreationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://thumbnailr-deploy-acc/a6c8ec8762ce71433959597fb2b1aa7c
+      Handler: main
+      Runtime: go1.x
+      Events:
+        RequestCreationEvent:
+          Type: Api
+          Properties:
+            Path: /request_creation
+            Method: POST
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: ThumbnailsDynamoDBTable
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: QuotaDynamoDBTable
+      - SNSPublishMessagePolicy:
+          TopicName: thumbnailr-creation-requests
+  CreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://thumbnailr-deploy-acc/b742d1abb064d3710c0fe19e7e72fa35
+      Handler: main
+      Runtime: go1.x
+      Events:
+        LogEntryEvent:
+          Type: SNS
+          Properties:
+            Topic:
+              Ref: CreationRequestsSNSTopic
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: ThumbnailsDynamoDBTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: QuotaDynamoDBTable
+      - S3ReadPolicy:
+          BucketName:
+            Ref: PhotoStoreS3Bucket
+      - S3CrudPolicy:
+          BucketName:
+            Ref: ThumbnailStoreS3Bucket
