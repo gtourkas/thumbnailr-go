@@ -10,9 +10,15 @@ import (
 	"gopkg.in/oauth2.v3/store"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
+
+	endPoint := os.Getenv("TN_AUTH_ENDPOINT")
+	if endPoint == "" {
+		endPoint = ":9096"
+	}
 
 	privateKey := []byte("no-key")
 
@@ -44,17 +50,18 @@ func main() {
 	})
 	srv.SetPasswordAuthorizationHandler(func(username, password string) (userID string, err error) {
 		if username == "test" && password == "test" {
-			userID = "test"
+			userID = "testuser"
 		}
 		return
 	})
 
 	http.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Access-Control-Allow-Origin", "*") // cors
 		err := srv.HandleTokenRequest(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
 
-	log.Fatal(http.ListenAndServe(":9096", nil))
+	log.Fatal(http.ListenAndServe(endPoint, nil))
 }

@@ -6,33 +6,33 @@ import (
 )
 
 type QuotaState struct {
-	UserID string
-	Month uint
-	Year uint
+	UserID  string
+	Month   uint
+	Year    uint
 	Current uint
-	Limit uint
+	Limit   uint
 	Reached bool
 }
 
 type Quota struct {
-	userID string
-	month uint
-	year uint
+	userID  string
+	month   uint
+	year    uint
 	current uint
-	limit uint
+	limit   uint
 	reached bool
 }
 
-func(q *Quota) IsReached() bool {
+func (q *Quota) IsReached() bool {
 	return q.reached
 }
 
 var (
-	ErrQuotaReached error = errors.New("quota is reached")
+	ErrQuotaReached        error = errors.New("quota is reached")
 	ErrCannotAddToPastDate error = errors.New("cannot add to quota of a past date")
 )
 
-func(q *Quota) Add(now time.Time) error {
+func (q *Quota) Add(now time.Time) error {
 
 	nowMonth := uint(now.Month())
 	nowYear := uint(now.Year())
@@ -53,7 +53,7 @@ func(q *Quota) Add(now time.Time) error {
 		return ErrQuotaReached
 	}
 
-	q.current ++
+	q.current++
 
 	if q.limit == q.current {
 		q.reached = true
@@ -64,7 +64,7 @@ func(q *Quota) Add(now time.Time) error {
 
 func NewQuota(userID string, now time.Time, limit uint) Quota {
 	return Quota{
-		userID: userID,
+		userID:  userID,
 		month:   uint(now.Month()),
 		year:    uint(now.Year()),
 		current: 0,
@@ -75,27 +75,29 @@ func NewQuota(userID string, now time.Time, limit uint) Quota {
 
 func NewQuotaFromState(state *QuotaState) Quota {
 	return Quota{
-		userID: state.UserID,
-		month: state.Month,
-		year: state.Year,
+		userID:  state.UserID,
+		month:   state.Month,
+		year:    state.Year,
 		current: state.Current,
-		limit: state.Limit,
+		limit:   state.Limit,
 		reached: state.Reached,
 	}
 }
 
-func(q *Quota) GetState() QuotaState {
+func (q *Quota) GetState() QuotaState {
 	return QuotaState{
-		UserID: q.userID,
-		Month: q.month,
-		Year: q.year,
+		UserID:  q.userID,
+		Month:   q.month,
+		Year:    q.year,
 		Current: q.current,
-		Limit: q.limit,
+		Limit:   q.limit,
 		Reached: q.reached,
 	}
 }
 
+var ErrQuotaNotFound = errors.New("quota not found")
+
 type QuotaRepo interface {
-	Get(userID string, out *QuotaState) error
+	Get(userID string) (*QuotaState, error)
 	Save(quota *QuotaState) error
 }

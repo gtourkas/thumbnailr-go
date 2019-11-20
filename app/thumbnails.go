@@ -6,7 +6,7 @@ import (
 )
 
 type Size struct {
-	Width uint
+	Width  uint
 	Length uint
 }
 
@@ -14,7 +14,7 @@ type Format string
 
 const (
 	JPEG Format = "JPEG"
-	PNG Format = "PNG"
+	PNG  Format = "PNG"
 )
 
 type ThumbnailStore interface {
@@ -27,17 +27,17 @@ type ThumbnailCreator interface {
 }
 
 type Thumbnail struct {
-	ID string
-	UserID string
-	PhotoID string
-	Size Size
-	Format Format
+	ID          string
+	UserID      string
+	PhotoID     string
+	Size        Size
+	Format      Format
 	RequestedAt time.Time
-	IsCreated bool
-	CreatedAt *time.Time
+	IsCreated   bool
+	CreatedAt   *time.Time
 }
 
 type ThumbnailRepo interface {
-	Get(id string, out *Thumbnail) error
+	Get(id string) (*Thumbnail, error)
 	Save(thumbnail *Thumbnail) error
 }

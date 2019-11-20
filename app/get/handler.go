@@ -9,29 +9,31 @@ import (
 )
 
 type Input struct {
-	UserID string
+	UserID      string
 	ThumbnailID string
 }
 
 type OutputData struct {
 	Base64Contents string
-	Format string
-	Size string
+	Format         string
+	Size           string
 }
 
 type Handler struct {
-	ThumbnailRepo app.ThumbnailRepo
+	ThumbnailRepo  app.ThumbnailRepo
 	ThumbnailStore app.ThumbnailStore
 }
 
 func (h *Handler) logf(format string, args ...interface{}) {
-	log.Printf("get: " + format,args)
+	log.Printf("get: "+format, args)
 }
 
 func (h *Handler) Handle(in Input) (out app.Output) {
 
-	thumbnail := app.Thumbnail{}
-	if err := h.ThumbnailRepo.Get(in.ThumbnailID, &thumbnail); err != nil {
+	var err error
+	var thumbnail *app.Thumbnail
+	thumbnail, err = h.ThumbnailRepo.Get(in.ThumbnailID)
+	if err != nil {
 		out = app.NewUnexpectedErrorOutput()
 		msg := fmt.Sprintf("cannot get thumbnail %s from repo", in.ThumbnailID)
 		out.Message = msg
@@ -51,8 +53,8 @@ func (h *Handler) Handle(in Input) (out app.Output) {
 	out = app.NewSuccessOutput()
 	out.Data = OutputData{
 		Base64Contents: base64.StdEncoding.EncodeToString(buff.Bytes()),
-		Format: string(thumbnail.Format),
-		Size: fmt.Sprintf("%dx%d", thumbnail.Size.Width, thumbnail.Size.Length),
+		Format:         string(thumbnail.Format),
+		Size:           fmt.Sprintf("%dx%d", thumbnail.Size.Width, thumbnail.Size.Length),
 	}
 	return
 }

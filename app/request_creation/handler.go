@@ -11,18 +11,21 @@ import (
 )
 
 type Input struct {
-	UserID string
+	UserID  string
 	PhotoID string
-	Format string
-	Width int
-	Length int
+	Format  string
+	Width   int
+	Length  int
 }
 
-
 type Handler struct {
-	QuotaRepo app.QuotaRepo
+	QuotaRepo     app.QuotaRepo
 	ThumbnailRepo app.ThumbnailRepo
 	CommandIssuer app.CommandIssuer
+}
+
+func NewHandler(quotaRepo app.QuotaRepo, thumbnailRepo app.ThumbnailRepo, commandIssuer app.CommandIssuer) *Handler {
+	return &Handler{QuotaRepo: quotaRepo, ThumbnailRepo: thumbnailRepo, CommandIssuer: commandIssuer}
 }
 
 type OutputData struct {
@@ -30,13 +33,13 @@ type OutputData struct {
 }
 
 var (
-	ErrBadSize = errors.New("BAD_SIZE")
+	ErrBadSize           = errors.New("BAD_SIZE")
 	ErrUnsupportedFormat = errors.New("UNSUPPORTED_FORMAT")
 	ErrQuotaReached      = errors.New("QUOTA_REACHED")
 )
 
 func (h *Handler) logf(format string, args ...interface{}) {
-	log.Printf("creation request handler: " + format,args)
+	log.Printf("creation request handler: "+format, args)
 }
 
 func (h *Handler) Handle(in Input) (out app.Output) {
@@ -54,18 +57,24 @@ func (h *Handler) Handle(in Input) (out app.Output) {
 	}
 
 	// check the user quota
-	state := app.QuotaState{}
-	if err := h.QuotaRepo.Get(in.UserID, &state); err != nil {
+	var err error
+	var state *app.QuotaState
+	state, err = h.QuotaRepo.Get(in.UserID)
+	if err != nil {
 		out = app.NewUnexpectedErrorOutput()
-		msg :=  fmt.Sprintf("cannot get user quota for user %s", in.UserID)
+		msg := fmt.Sprintf("cannot get user quota for user %s", in.UserID)
 		out.Message = msg
 		h.logf("%s / error: %v", msg, err)
 		return
 	}
-	quota := app.NewQuotaFromState(&state)
 
 	// create quota if the user doesn't have any
-	// TODO
+	var quota app.Quota
+	if state == nil {
+		quota = app.NewQuota(in.UserID, time.Now().UTC(), 100)
+	} else {
+		quota = app.NewQuotaFromState(state)
+	}
 
 	// if quota is reached do not proceed
 	if quota.IsReached() {
@@ -76,13 +85,13 @@ func (h *Handler) Handle(in Input) (out app.Output) {
 	thumbnailID := uuid.New().String()
 	now := time.Now().UTC()
 	if err := h.ThumbnailRepo.Save(&app.Thumbnail{
-		ID:                 thumbnailID,
-		UserID:             in.UserID,
-		PhotoID:            in.PhotoID,
-		Size:               app.Size{Length: uint(in.Length), Width: uint(in.Width)},
-		Format:             app.Format(in.Format),
-		IsCreated:          false,
-		RequestedAt:        now,
+		ID:          thumbnailID,
+		UserID:      in.UserID,
+		PhotoID:     in.PhotoID,
+		Size:        app.Size{Length: uint(in.Length), Width: uint(in.Width)},
+		Format:      app.Format(in.Format),
+		IsCreated:   false,
+		RequestedAt: now,
 	}); err != nil {
 		out = app.NewUnexpectedErrorOutput()
 		msg := "cannot add thumbnail"
@@ -93,11 +102,11 @@ func (h *Handler) Handle(in Input) (out app.Output) {
 
 	// send the command for thumbnail creation
 	if err := h.CommandIssuer.Send(create.Input{
-		UserID: in.UserID,
+		UserID:      in.UserID,
 		ThumbnailID: thumbnailID,
-		PhotoID: in.PhotoID,
-		Format: app.Format(in.Format),
-		Size:  app.Size{Length: uint(in.Length), Width: uint(in.Width)},
+		PhotoID:     in.PhotoID,
+		Format:      app.Format(in.Format),
+		Size:        app.Size{Length: uint(in.Length), Width: uint(in.Width)},
 	}); err != nil {
 		out = app.NewUnexpectedErrorOutput()
 		msg := "cannot issue command for thumbnail creation"
@@ -109,16 +118,17 @@ func (h *Handler) Handle(in Input) (out app.Output) {
 	// add to the user quota
 	quota.Add(time.Now().UTC())
 
-	state = quota.GetState()
-	if err:= h.QuotaRepo.Save(&state); err != nil {
+	s := quota.GetState()
+	state = &s
+	if err := h.QuotaRepo.Save(state); err != nil {
 		out = app.NewUnexpectedErrorOutput()
-		msg :=  fmt.Sprintf("cannot update user quota for user %s", in.UserID)
+		msg := fmt.Sprintf("cannot update user quota for user %s", in.UserID)
 		out.Message = msg
 		h.logf("%s / error: %v", msg, err)
 		return
 	}
 
 	out = app.NewSuccessOutput()
-	out.Data = OutputData{ ThumbnailID: thumbnailID }
+	out.Data = OutputData{ThumbnailID: thumbnailID}
 	return
 }

@@ -10,18 +10,18 @@ import (
 )
 
 type QuotaRepo struct {
-	db *dynamodb.DynamoDB
+	db        *dynamodb.DynamoDB
 	tableName *string
 }
 
 func NewQuotaRepo(sess *session.Session) *QuotaRepo {
 	return &QuotaRepo{
-		db: dynamodb.New(sess),
-		tableName: aws.String("thumbnailr_quota"),
+		db:        dynamodb.New(sess),
+		tableName: aws.String("thumbnailr-quota"),
 	}
 }
 
-func (qr *QuotaRepo) Get(userID string, out *app.QuotaState) error {
+func (qr *QuotaRepo) Get(userID string) (*app.QuotaState, error) {
 	input := &dynamodb.GetItemInput{
 		TableName: qr.tableName,
 		Key: map[string]*dynamodb.AttributeValue{
@@ -31,20 +31,22 @@ func (qr *QuotaRepo) Get(userID string, out *app.QuotaState) error {
 		},
 	}
 
+	tmp := app.QuotaState{}
 	if res, err := qr.db.GetItem(input); err == nil {
-		if err := dynamodbattribute.UnmarshalMap(res.Item, out); err != nil {
-		} else {
-			return errors.Wrapf(err,"cannot unmarshal quota for user %s", userID)
+		if res.Item == nil {
+			return nil, nil
 		}
-	} else
-	{
-		return errors.Wrapf(err,"cannot get quota for user %s", userID)
+		if err := dynamodbattribute.UnmarshalMap(res.Item, &tmp); err != nil {
+			return nil, errors.Wrapf(err, "cannot unmarshal quota for user %s", userID)
+		}
+	} else {
+		return nil, errors.Wrapf(err, "cannot get quota for user %s", userID)
 	}
 
-	return nil
+	return &tmp, nil
 }
 
-func(qr *QuotaRepo) Save(state *app.QuotaState) error {
+func (qr *QuotaRepo) Save(state *app.QuotaState) error {
 	item, e := dynamodbattribute.MarshalMap(state)
 	if e != nil {
 		return e
@@ -52,11 +54,11 @@ func(qr *QuotaRepo) Save(state *app.QuotaState) error {
 
 	input := &dynamodb.PutItemInput{
 		TableName: qr.tableName,
-		Item: item,
+		Item:      item,
 	}
 
 	if _, err := qr.db.PutItem(input); err != nil {
-		return errors.Wrapf(err,"cannot save quota for user %s", state.UserID)
+		return errors.Wrapf(err, "cannot save quota for user %s", state.UserID)
 	}
 
 	return nil

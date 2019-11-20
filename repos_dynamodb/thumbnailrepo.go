@@ -9,20 +9,19 @@ import (
 	"thumbnailr/app"
 )
 
-type ThumbnailRepo struct
-{
-	db *dynamodb.DynamoDB
+type ThumbnailRepo struct {
+	db        *dynamodb.DynamoDB
 	tableName *string
 }
 
 func NewThumbnailRepo(sess *session.Session) *ThumbnailRepo {
 	return &ThumbnailRepo{
-		db: dynamodb.New(sess),
-		tableName: aws.String("thumbnailr_thumbnails"),
+		db:        dynamodb.New(sess),
+		tableName: aws.String("thumbnailr-thumbnails"),
 	}
 }
 
-func(tr *ThumbnailRepo) Get(id string, out *app.Thumbnail) error {
+func (tr *ThumbnailRepo) Get(id string) (*app.Thumbnail, error) {
 	input := &dynamodb.GetItemInput{
 		TableName: tr.tableName,
 		Key: map[string]*dynamodb.AttributeValue{
@@ -32,20 +31,21 @@ func(tr *ThumbnailRepo) Get(id string, out *app.Thumbnail) error {
 		},
 	}
 
+	tmp := app.Thumbnail{}
 	if res, err := tr.db.GetItem(input); err == nil {
-		if err := dynamodbattribute.UnmarshalMap(res.Item, out); err != nil {
-		} else {
-			return errors.Wrapf(err,"cannot unmarshal thumbnail %s", id)
+		if res.Item == nil {
+			return nil, nil
 		}
-	} else
-	{
-		return errors.Wrapf(err,"cannot get thumbnail %s", id)
+		if err := dynamodbattribute.UnmarshalMap(res.Item, &tmp); err != nil {
+			return nil, errors.Wrapf(err, "cannot unmarshal thumbnail %s", id)
+		}
+		return &tmp, nil
+	} else {
+		return nil, errors.Wrapf(err, "cannot get thumbnail %s", id)
 	}
-
-	return nil
 }
 
-func(tr *ThumbnailRepo) Save(thumbnail *app.Thumbnail) error {
+func (tr *ThumbnailRepo) Save(thumbnail *app.Thumbnail) error {
 	item, e := dynamodbattribute.MarshalMap(thumbnail)
 	if e != nil {
 		return e
@@ -53,11 +53,11 @@ func(tr *ThumbnailRepo) Save(thumbnail *app.Thumbnail) error {
 
 	input := &dynamodb.PutItemInput{
 		TableName: tr.tableName,
-		Item: item,
+		Item:      item,
 	}
 
 	if _, err := tr.db.PutItem(input); err != nil {
-		return errors.Wrapf(err,"cannot save thumbnail %s", thumbnail.ID)
+		return errors.Wrapf(err, "cannot save thumbnail %s", thumbnail.ID)
 	}
 
 	return nil

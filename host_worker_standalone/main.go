@@ -2,35 +2,33 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"thumbnailr/app"
 	"thumbnailr/app/create"
 	"thumbnailr/repos_dynamodb"
 	"thumbnailr/stores_s3"
 )
 
-func subscribe(endPoint string, topicARN string) error {
+func subscribe(sess *session.Session, endPoint string, topicARN string) error {
 	input := &sns.SubscribeInput{
 		Endpoint: aws.String(endPoint),
 		Protocol: aws.String("http"),
 		TopicArn: aws.String(topicARN),
 	}
 
-	sess, err := session.NewSession()
-	if err != nil {
-		return errors.Wrap(err,"cannot create new aws sdk session")
-	}
-
 	svc := sns.New(sess)
 
 	if _, err := svc.Subscribe(input); err != nil {
-		return errors.Wrap(err,"cannot subscribe")
+		return errors.Wrap(err, "cannot subscribe")
 	}
 
 	return nil
@@ -38,11 +36,10 @@ func subscribe(endPoint string, topicARN string) error {
 
 func confirmSubscription(subscribeURL string) error {
 	if _, err := http.Get(subscribeURL); err != nil {
-		return errors.Wrapf(err,"cannot http-get %s", subscribeURL)
+		return errors.Wrapf(err, "cannot http-get %s", subscribeURL)
 	}
 	return nil
 }
-
 
 func snsHandler(msgHandlers map[string]MessageHandlerFunc) http.HandlerFunc {
 
@@ -108,12 +105,12 @@ func createMessageHandler(appHandler *create.Handler) MessageHandlerFunc {
 	return func(msg string) error {
 		var in create.Input
 		if err := json.Unmarshal([]byte(msg), &in); err != nil {
-			return errors.Wrap(err,"cannot unmarshal the create input msg")
+			return errors.Wrap(err, "cannot unmarshal the create input msg")
 		}
 
 		out := appHandler.Handle(in)
 
-		return outputToError("create",  out)
+		return outputToError("create", out)
 	}
 }
 
@@ -124,25 +121,50 @@ func outputToError(msgHandlerName string, out app.Output) error {
 	return nil
 }
 
-
 func main() {
+	endPoint := os.Getenv("TN_WORKER_ENDPOINT")
+	if endPoint == "" {
+		endPoint = ":9098"
+	}
 
 	sess, err := session.NewSession()
 	if err != nil {
-		log.Printf("cannot create new sdk session: %s", err)
-		return
+		log.Fatalf("cannot create new sdk session: %s", err)
 	}
 
-	photoStore := stores_s3.NewPhotoStore(sess, "thumbnailr-photostore")
-	thumbnailStore := stores_s3.NewThumbnailStore(sess, "thumbnailr-thumbnailstore")
+	stss := sts.New(sess)
+	cid, err := stss.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		log.Fatalf("cannot get the caller identity: %s", err)
+	}
+
+	// this is done only for getting the topic ARN from the topic name
+	snss := sns.New(sess)
+	snso, err := snss.CreateTopic(&sns.CreateTopicInput{
+		Name: aws.String("thumbnailr-creation-requests"),
+	})
+	if err != nil {
+		log.Fatalf("cannot create the topic: %s", err)
+	}
+	snsTopicARN := *snso.TopicArn
+
+	photoStore := stores_s3.NewPhotoStore(sess, fmt.Sprintf("thumbnailr-photostore-%s", *cid.Account))
+	thumbnailStore := stores_s3.NewThumbnailStore(sess, fmt.Sprintf("thumbnailr-thumbnailstore-%s", *cid.Account))
 	thumbnailRepo := repos_dynamodb.NewThumbnailRepo(sess)
 
 	appHandler := create.NewHandler(photoStore, thumbnailStore, thumbnailRepo)
 
-	msgHandlers := map[string]MessageHandlerFunc {
+	msgHandlers := map[string]MessageHandlerFunc{
 		"create": createMessageHandler(appHandler),
 	}
 
-	http.HandleFunc("/", snsHandler(msgHandlers))
-	log.Fatal(http.ListenAndServe(":9098", nil))
+	go func() {
+		http.HandleFunc("/", snsHandler(msgHandlers))
+	}()
+
+	if err := subscribe(sess, endPoint, snsTopicARN); err != nil {
+		log.Fatalf("cannot subscribe to SNS: %s", err)
+	}
+
+	log.Fatal(http.ListenAndServe(endPoint, nil))
 }

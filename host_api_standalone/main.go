@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/pkg/errors"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
-	"strings"
 	"thumbnailr/app"
 	"thumbnailr/app/check_creation"
 	"thumbnailr/app/get"
@@ -23,14 +25,7 @@ var auth app.Auth
 func addAuth(auth *app.Auth, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
-		prefix := "Bearer "
-		if !strings.HasPrefix(authHeader, prefix) {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-		token := strings.ReplaceAll(authHeader, prefix, "")
-
-		userID, err := auth.ParseAuthHeader(token)
+		userID, err := auth.ParseAuthHeader(authHeader)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			e := errors.Wrap(err, "cannot parse the access token")
@@ -41,14 +36,29 @@ func addAuth(auth *app.Auth, h http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), "UserID", userID)
 		r = r.WithContext(ctx)
 
-		h(w,r)
+		h(w, r)
+	}
+}
+
+func addCors(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+
+		// preflight
+		if r.Method == "OPTIONS" {
+			w.Header().Add("Access-Control-Allow-Methods", "*")
+			w.Header().Add("Access-Control-Allow-Headers", "*")
+			w.WriteHeader(204)
+			return
+		}
+
+		h(w, r)
 	}
 }
 
 func wrapMiddleware(f http.HandlerFunc) http.HandlerFunc {
-	return addAuth(&auth,f)
+	return addCors(addAuth(&auth, f))
 }
-
 
 func outputToResp(output *app.Output, w http.ResponseWriter) {
 	if output.Success {
@@ -86,7 +96,7 @@ func checkCreationHandler(appHandler check_creation.Handler) http.HandlerFunc {
 		}
 
 		in := check_creation.Input{
-			UserID: r.Context().Value("UserID").(string),
+			UserID:      r.Context().Value("UserID").(string),
 			ThumbnailID: id,
 		}
 
@@ -109,7 +119,7 @@ func getHandler(appHandler get.Handler) http.HandlerFunc {
 		}
 
 		in := get.Input{
-			UserID: r.Context().Value("UserID").(string),
+			UserID:      r.Context().Value("UserID").(string),
 			ThumbnailID: id,
 		}
 
@@ -138,11 +148,11 @@ func requestCreationHandler(appHandler request_creation.Handler) http.HandlerFun
 		}
 
 		in := request_creation.Input{
-			UserID: r.Context().Value("UserID").(string),
+			UserID:  r.Context().Value("UserID").(string),
 			PhotoID: q.Get("photoID"),
-			Format: q.Get("format"),
-			Width: width,
-			Length: length,
+			Format:  q.Get("format"),
+			Width:   width,
+			Length:  length,
 		}
 
 		out := appHandler.Handle(in)
@@ -153,34 +163,47 @@ func requestCreationHandler(appHandler request_creation.Handler) http.HandlerFun
 }
 
 func main() {
+	endPoint := os.Getenv("TN_API_ENDPOINT")
+	if endPoint == "" {
+		endPoint = ":9097"
+	}
 
 	sess, err := session.NewSession()
 	if err != nil {
-		return
+		log.Fatalf("cannot create new session: %s", err)
 	}
 
-	auth = app.Auth{PrivateKey:"no-key"}
+	svc := sts.New(sess)
+	cid, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		log.Fatalf("cannot get the caller identity: %s", err)
+	}
 
-	cmdIssuer := bus_sns.NewCommandIssuer(sess)
+	cmdIssuer, err := bus_sns.NewCommandIssuer(sess)
+	if err != nil {
+		log.Fatalf("cannot create the command issuer: %s", err)
+	}
+
+	auth = app.Auth{PrivateKey: "no-key"}
 
 	quotaRepo := repos_dynamodb.NewQuotaRepo(sess)
 
 	thumbnailRepo := repos_dynamodb.NewThumbnailRepo(sess)
 
-	thumbnailStore := stores_s3.NewThumbnailStore(sess, "thumbnailr-thumbnailstore")
+	thumbnailStore := stores_s3.NewThumbnailStore(sess, fmt.Sprintf("thumbnailr-thumbnailstore-%s", *cid.Account))
 
 	http.HandleFunc("/check_creation", checkCreationHandler(check_creation.Handler{
 		ThumbnailRepo: thumbnailRepo,
-		}))
+	}))
 
 	http.HandleFunc("/get", getHandler(get.Handler{
-		ThumbnailRepo: thumbnailRepo,
+		ThumbnailRepo:  thumbnailRepo,
 		ThumbnailStore: thumbnailStore}))
 
 	http.HandleFunc("/request_creation", requestCreationHandler(request_creation.Handler{
 		ThumbnailRepo: thumbnailRepo,
-		QuotaRepo: quotaRepo,
+		QuotaRepo:     quotaRepo,
 		CommandIssuer: cmdIssuer}))
 
-	log.Fatal(http.ListenAndServe(":9097", nil))
+	log.Fatal(http.ListenAndServe(endPoint, nil))
 }

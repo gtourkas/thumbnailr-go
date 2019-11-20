@@ -9,17 +9,17 @@ import (
 )
 
 type Input struct {
-	UserID string
+	UserID      string
 	ThumbnailID string
-	PhotoID string
-	Format app.Format
-	Size app.Size
+	PhotoID     string
+	Format      app.Format
+	Size        app.Size
 }
 
 type Handler struct {
-	PhotoStore       app.PhotoStore
+	PhotoStore     app.PhotoStore
 	ThumbnailStore app.ThumbnailStore
-	ThumbnailRepo app.ThumbnailRepo
+	ThumbnailRepo  app.ThumbnailRepo
 
 	thumbnailCreator app.ThumbnailCreator
 }
@@ -27,23 +27,25 @@ type Handler struct {
 func NewHandler(photoStore app.PhotoStore, thumbnailStore app.ThumbnailStore, thumbnailRepo app.ThumbnailRepo) *Handler {
 	h := &Handler{PhotoStore: photoStore,
 		ThumbnailStore: thumbnailStore,
-		ThumbnailRepo: thumbnailRepo}
+		ThumbnailRepo:  thumbnailRepo}
 
 	h.thumbnailCreator = &app.ThumbnailCreatorImpl{}
 
 	return h
 }
 
-
 func (h *Handler) logf(format string, args ...interface{}) {
-	log.Printf("create handler: " + format,args)
+	log.Printf("create handler: "+format, args)
 }
 
-func (h *Handler) Handle(in Input) (out app.Output)  {
+func (h *Handler) Handle(in Input) (out app.Output) {
+
+	var err error
 
 	// check if the thumbnail is already created; if so end
-	thumbnail := app.Thumbnail{}
-	if err := h.ThumbnailRepo.Get(in.ThumbnailID, &thumbnail); err != nil {
+	var thumbnail *app.Thumbnail
+	thumbnail, err = h.ThumbnailRepo.Get(in.ThumbnailID)
+	if err != nil {
 		out = app.NewUnexpectedErrorOutput()
 		msg := fmt.Sprintf("cannot get thumbnail %s from repo", in.PhotoID)
 		out.Message = msg
@@ -93,7 +95,7 @@ func (h *Handler) Handle(in Input) (out app.Output)  {
 	thumbnail.IsCreated = true
 	thumbnail.CreatedAt = &now
 
-	if err := h.ThumbnailRepo.Save(&thumbnail); err != nil {
+	if err := h.ThumbnailRepo.Save(thumbnail); err != nil {
 		out = app.NewUnexpectedErrorOutput()
 		msg := fmt.Sprintf("cannot update thumbnail %s for user %s to repo", in.ThumbnailID, in.UserID)
 		out.Message = msg
