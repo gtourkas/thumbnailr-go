@@ -205,5 +205,9 @@ func main() {
 		QuotaRepo:     quotaRepo,
 		CommandIssuer: cmdIssuer}))
 
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
 	log.Fatal(http.ListenAndServe(endPoint, nil))
 }

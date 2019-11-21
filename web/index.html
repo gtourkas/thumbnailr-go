@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Thumbnailr UI</title>
+    <script src="https://cdn.jsdelivr.net/npm/umbrellajs"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/picnic">
+    <style>
+        .hide {
+            display: none;
+        }
+    </style>
+    <script>
+        var authHeader = '';
+
+        document.addEventListener('DOMContentLoaded', function(){
+
+            let env = 'local';
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('env')) {
+                env = urlParams.get('env');
+            }
+            const currCfg = cfg[env];
+
+            u('#userPanel').addClass('hide');
+            u('#photoPanel').addClass('hide');
+
+            u('#signInError').addClass('hide');
+            u('#thumbnailError').addClass('hide');
+
+            u('#btnSignIn').on('click', async function(){
+
+                const username = u("#txtUsername").first().value;
+                const password = u("#txtPassword").first().value;
+
+                if (username === '' || password === '') {
+                    u('#signInError').removeClass('hide').html('Hey, we need a username and a password !');
+                    return
+                }
+
+                const authUrl = currCfg.authUrl + '/token?grant_type=password&username=' + username + '&password=' + password;
+                const method = 'POST';
+                const headers = new Headers({
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                });
+
+                const authResp = await fetch(authUrl, {method, headers});
+                if (authResp.status === 200) {
+                    const authData = await authResp.json();
+                    authHeader = authData.token_type + " " + authData.access_token;
+
+                    u('#signInError').addClass('hide');
+                    u('#signInPanel').addClass('hide');
+                    u('#userPanel').removeClass('hide');
+                    u('#photoPanel').removeClass('hide');
+                } else {
+                    authHeader = null;
+                    let msg = '';
+                    if (authResp.status === 401) {
+                        msg = 'Oops, no such user';
+                    } else {
+                        msg = 'Sorry, cannot connect to the auth server !';
+                    }
+                    u('#signInError').removeClass('hide').html(msg);
+                }
+            });
+
+            u("#btnSignOut").on('click', function() {
+                u('#signInPanel').removeClass('hide');
+                u('#userPanel').addClass('hide');
+                u('#photoPanel').addClass('hide');
+                authHeader = null;
+            });
+
+            u("#btnCreateThumbnail").on('click', async function() {
+
+                const width = u("#txtWidth").first().value;
+                const length = u("#txtLength").first().value;
+                const format = u("#selFormat").first().value;
+                const photoID = u("#selPhoto").first().value;
+
+                const createUrl = currCfg.apiUrl + '/request_creation?width=' + width + '&length=' + length + '&format=' + format + '&photoID=' + photoID ;
+                const method = 'POST';
+                const headers = new Headers({
+                    'Authorization': authHeader,
+                    'Content-Type': 'application/json'
+                });
+
+                const createResp = await fetch(createUrl, {method, headers});
+                const createData = await createResp.json();
+                // createData.ThumbnailID
+
+            });
+
+        });
+    </script>
+</head>
+<body>
+    <header>
+        <h2>Thumbnailr</h2>
+    </header>
+    <main>
+        <section>
+            <div id="signInPanel">
+                <fieldset>
+                    <label>Username</label>
+                    <input id="txtUsername" type="text" >
+                    <label>Password</label>
+                    <input id="txtPassword" type="password">
+                    <button id="btnSignIn">Sign In</button>
+                </fieldset>
+                <h2><span id="signInError" class="label error"></span></h2>
+            </div>
+            <div id="userPanel">
+                User: <span>Test</span>
+                <button id="btnSignOut">Sign Out</button>
+            </div>
+        </section>
+        <section>
+            <div id="photoPanel">
+                <fieldset>
+                    <label>Photo</label>
+                    <select id="selPhoto">
+                        <option value="buddha.jpg">Buddha</option>
+                        <option value="city-street.jpg">City Street</option>
+                        <option value="fire-department.jpg">Fire Department</option>
+                        <option value="lake.jpg">Lake</option>
+                        <option value="rural.jpg">Rural</option>
+                    </select>
+                    <label>Width</label>
+                    <input type="number" id="txtWidth" >
+                    <label>Length</label>
+                    <input type="number" id="txtLength" >
+                    <label>Format</label>
+                    <select id="selFormat">
+                        <option value="PNG">PNG</option>
+                        <option value="JPEG">JPEG</option>
+                    </select>
+                    <button id="btnCreateThumbnail">Create Thumbnail</button>
+                </fieldset>
+                <h2><span id="thumbnailError" class="label error"></span></h2>
+                <img src="" />
+            </div>
+        </section>
+    </main>
+</body>
+</html>

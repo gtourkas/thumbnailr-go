@@ -1,0 +1,1 @@
+http "http://127.0.0.1:3000/check_creation?id=fb1d19aa-2271-4256-aa58-cad4ad1bd9ef" Authorization:"Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ3ZWIiLCJleHAiOjE1NzM1OTk3NjksInN1YiI6InRlc3R1c2VyIn0.j_wn1SC8UGfQxlIexosabz1_1KC56Emg47rAaAh-VcZang3ZCnEMJmXNnfiyoNeUMVtnG3c_ERCT1povSS03-g"
