@@ -52,7 +52,7 @@ func Build() error {
 	destPath := conf.HandlersDestPath
 	maxConcurBuilds := conf.MaxConcurBuilds
 	debug := false
-	if strings.ToLower(os.Getenv("TNDEBUG")) == "true" {
+	if strings.ToLower(os.Getenv("TN_DEBUG")) == "true" {
 		debug = true
 	}
 
@@ -123,10 +123,6 @@ func buildSingle(srcPath string, destPath string, handlerDir string, debug bool)
 	}
 	if err := sh.RunWith(env, "go", "build", debugArg, "-o", output, input); err != nil {
 		return errors.Wrapf(err,"cannot go build %s", input)
-	}
-	zip := fmt.Sprintf("%s.zip", output)
-	if err := sh.RunWith(env, "zip", "-j", zip, output); err != nil {
-		return errors.Wrapf(err,"cannot zip %s to %s", output, zip)
 	}
 	return nil
 }

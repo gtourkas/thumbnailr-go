@@ -40,3 +40,4 @@ func (h *Handler) Handle(in Input) (out app.Output) {
 	out.Data = OutputData{IsCreated: thumbnail.IsCreated}
 	return
 }
+

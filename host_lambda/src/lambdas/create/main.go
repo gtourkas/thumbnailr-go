@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/pkg/errors"
 	"log"
 	"thumbnailr/app/create"
@@ -17,12 +19,17 @@ var appHandler *create.Handler
 func init() {
 	sess, err := session.NewSession()
 	if err != nil {
-		log.Printf("cannot create new sdk session: %s", err)
-		return
+		log.Fatalf("cannot create new sdk session: %s", err)
 	}
 
-	photoStore := stores_s3.NewPhotoStore(sess, "thumbnailr-photostore")
-	thumbnailStore := stores_s3.NewThumbnailStore(sess, "thumbnailr-thumbnailstore")
+	svc := sts.New(sess)
+	cid, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		log.Fatalf("cannot get the caller identity: %s", err)
+	}
+
+	photoStore := stores_s3.NewPhotoStore(sess, fmt.Sprintf("thumbnailr-photostore-%s", *cid.Account))
+	thumbnailStore := stores_s3.NewThumbnailStore(sess, fmt.Sprintf("thumbnailr-thumbnailstore-%s", *cid.Account))
 	thumbnailRepo := repos_dynamodb.NewThumbnailRepo(sess)
 
 	appHandler = create.NewHandler(photoStore, thumbnailStore, thumbnailRepo)

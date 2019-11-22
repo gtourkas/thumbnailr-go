@@ -3,6 +3,9 @@ Transform: AWS::Serverless-2016-10-31
 Description: 'thumbnailr
 
   '
+Globals:
+  Function:
+    Timeout: 600
 Resources:
   QuotaDynamoDBTable:
     Type: AWS::DynamoDB::Table
@@ -33,19 +36,49 @@ Resources:
   ThumbnailStoreS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: thumbnailr-thumbnailstore
+      BucketName:
+        Fn::Sub: thumbnailr-thumbnailstore-${AWS::AccountId}
   PhotoStoreS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: thumbnailr-photostore
+      BucketName:
+        Fn::Sub: thumbnailr-photostore-${AWS::AccountId}
   CreationRequestsSNSTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: thumbnailr-creation-requests
-  CheckCreationFunction:
+  PingFunctionAlb:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://thumbnailr-deploy-acc/d64e94524fd0403906f8241d9e091681
+      CodeUri: s3://sam-deployment-307390403458/0f7af57ab6bcc06a05600571c6d525b1
+      Handler: main
+      Runtime: go1.x
+  PingFunctionApiGw:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://sam-deployment-307390403458/e6e83904fae7b52f6ae13005de3f20c7
+      Handler: main
+      Runtime: go1.x
+      Events:
+        CheckCreationEvent:
+          Type: Api
+          Properties:
+            Path: /ping
+            Method: GET
+  CheckCreationFunctionAlb:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://sam-deployment-307390403458/9836d760ba6b1a5035a8754267bd484f
+      Handler: main
+      Runtime: go1.x
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: ThumbnailsDynamoDBTable
+  CheckCreationFunctionApiGw:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://sam-deployment-307390403458/1c3ed4af45f6028427aaf3831920a2a4
       Handler: main
       Runtime: go1.x
       Events:
@@ -61,7 +94,7 @@ Resources:
   GetFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://thumbnailr-deploy-acc/d10e38d72260a8449d78fb0fbbc789a6
+      CodeUri: s3://sam-deployment-307390403458/1f36dff7a4ec7d0d703bbe1b26a66e2a
       Handler: main
       Runtime: go1.x
       Events:
@@ -80,7 +113,7 @@ Resources:
   RequestCreationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://thumbnailr-deploy-acc/a6c8ec8762ce71433959597fb2b1aa7c
+      CodeUri: s3://sam-deployment-307390403458/f655e0f63b1bcdf35862d6325a9319b5
       Handler: main
       Runtime: go1.x
       Events:
@@ -101,9 +134,11 @@ Resources:
   CreateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://thumbnailr-deploy-acc/b742d1abb064d3710c0fe19e7e72fa35
+      CodeUri: s3://sam-deployment-307390403458/bd2d8d5ed3037ce41840782bcc204919
       Handler: main
       Runtime: go1.x
+      MemorySize: 512
+      Timeout: 5
       Events:
         LogEntryEvent:
           Type: SNS
