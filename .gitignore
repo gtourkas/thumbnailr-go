@@ -4,3 +4,4 @@ host_lambda/delve/*
 host_web_standalone/main
 host_worker_standalone/main
 .DS_Store
+.idea
