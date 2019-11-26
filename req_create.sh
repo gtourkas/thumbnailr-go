@@ -1,1 +1,0 @@
-http POST "http://127.0.0.1:3000/request_creation?width=100&length=100&photoID=buddha.jpg&format=PNG" Authorization:"Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ3ZWIiLCJleHAiOjE1NzM4MjI2ODgsInN1YiI6InRlc3R1c2VyIn0.eYSs9r1HQ5N2oL4jGs0QavcF859vw1CZ3hRX7o7KheqUvPxK_FUHDBong5a6UITda8KoPB7MYsvW7uaXdFoTjA"
