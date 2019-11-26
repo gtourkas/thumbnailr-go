@@ -1,14 +1,20 @@
 # Thumbnailr
 
-This is a sample AWS serverless api for creating thumbnails from photos. It's built with Golang and [AWS SAM](https://github.com/awslabs/serverless-application-model).
+This is a sample AWS serverless api for creating thumbnails from photos. It's built with Golang and 
+[AWS SAM](https://github.com/awslabs/serverless-application-model) and its intented usage is to serve as a sandbox or an
+educational resource.
 
 ## Getting Started
 
-You need to follow the [AWS instructions](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) to install the required software and setup your AWS account.  
+You need to follow the 
+[AWS instructions](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) 
+to install the required software and setup your AWS account.  
 
-You also need to install [mage](https://magefile.org/) for building the lambdas and [delve](https://github.com/go-delve/delve) for locally debugging them. 
+You also need to install [mage](https://magefile.org/) for building the lambdas and 
+[delve](https://github.com/go-delve/delve) for locally debugging them. 
 
-Note that I've developed this in Mac OS and I'm using bash for a few, very simple, convenient shell scripts. Some of these scripts have a dependency to [jq](https://stedolan.github.io/jq/) and some others to [httpie](https://httpie.org/). 
+Note that I've developed this on a Mac OS and I'm using bash for a few, very simple, convenient shell scripts. Some of 
+these scripts have a dependency to [jq](https://stedolan.github.io/jq/) and some others to [httpie](https://httpie.org/). 
 
 ## Build
 
@@ -21,7 +27,7 @@ mage -d ./mage build
 ```
 
 which builds up to `max_concur_builds` lambdas concurrently. 
-The value of `max_concur_builds` be set in the `./mage/conf.ini` file.  
+The value of `max_concur_builds` can be set in the `./mage/conf.ini` file.  
 
 ### Build a Single Lambda
 
@@ -99,7 +105,8 @@ Finally you need to follow the steps in the `Run Locally` section. Each `sam` co
 
 ## Deploy
 
-Make sure you've built all handlers with debugging off (default option). With a terminal cd'ed to the the `host_lambda` directory run the following:
+Make sure you've built all handlers with debugging off (default option). With a terminal cd'ed to the the `host_lambda` 
+directory run the following:
 
 ```
 ./deploy.sh
@@ -109,8 +116,10 @@ This script assumes an S3 Bucket named `sam-deployment-<AWS_ACCOUNT_ID>` where t
 
 Note that:
 1. API GW HTTPS Url is printed. You need that Url to perform calls at the production environment.
-2. ALB is not created (SAM does not provide this option yet). One needs to create it manually and wire it with the lambdas ending in '-alb'.  
+2. ALB is not created (SAM does not provide this option yet). One needs to create it manually and wire it with the 
+lambdas ending in '-alb'.  
 
 ## Run
 
-The steps are identical to those of `Run Locally` but the local HTTP url needs to be replaced with the output HTTPS URL of the deployment script. 
+The steps are identical to those of `Run Locally` but the local HTTP url needs to be replaced with the output HTTPS URL 
+of the deployment script. 
