@@ -1,8 +1,6 @@
 # Thumbnailr
 
-## About
-
-This is a sample AWS serverless app for creating thumbnails from photos. It's built with Golang and [SAM](https://github.com/awslabs/serverless-application-model).
+This is a sample AWS serverless api for creating thumbnails from photos. It's built with Golang and [AWS SAM](https://github.com/awslabs/serverless-application-model).
 
 ## Getting Started
 
@@ -107,7 +105,11 @@ Make sure you've built all handlers with debugging off (default option). With a 
 ./deploy.sh
 ```
 
-Note that API GW HTTPS Url is printed. You need that to performs calls at the production environment.
+This script assumes an S3 Bucket named `sam-deployment-<AWS_ACCOUNT_ID>` where the packaged lambdas are uploaded.
+
+Note that:
+1. API GW HTTPS Url is printed. You need that Url to perform calls at the production environment.
+2. ALB is not created (SAM does not provide this option yet). One needs to create it manually and wire it with the lambdas ending in '-alb'.  
 
 ## Run
 
