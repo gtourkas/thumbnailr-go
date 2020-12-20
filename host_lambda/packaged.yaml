@@ -6,6 +6,7 @@ Description: 'thumbnailr
 Globals:
   Function:
     Timeout: 600
+    MemorySize: 192
 Resources:
   QuotaDynamoDBTable:
     Type: AWS::DynamoDB::Table
@@ -50,13 +51,13 @@ Resources:
   PingFunctionAlb:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://sam-deployment-307390403458/0f7af57ab6bcc06a05600571c6d525b1
+      CodeUri: s3://sam-deployment-307390403458/1881198a817af0106bbb8c176193ff9d
       Handler: main
       Runtime: go1.x
   PingFunctionApiGw:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://sam-deployment-307390403458/e6e83904fae7b52f6ae13005de3f20c7
+      CodeUri: s3://sam-deployment-307390403458/34e6ea5551ed9d8ce54a26e9c334c6d6
       Handler: main
       Runtime: go1.x
       Events:
@@ -68,17 +69,29 @@ Resources:
   CheckCreationFunctionAlb:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://sam-deployment-307390403458/9836d760ba6b1a5035a8754267bd484f
+      CodeUri: s3://sam-deployment-307390403458/38382951fbab4a066cb7b378b6583613
       Handler: main
       Runtime: go1.x
       Policies:
       - DynamoDBReadPolicy:
           TableName:
             Ref: ThumbnailsDynamoDBTable
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://sam-deployment-307390403458/831fe99e1323c73be2f20455c77e27a6
+      Handler: main
+      Runtime: go1.x
+      Events:
+        AuthEvent:
+          Type: Api
+          Properties:
+            Path: /token
+            Method: POST
   CheckCreationFunctionApiGw:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://sam-deployment-307390403458/1c3ed4af45f6028427aaf3831920a2a4
+      CodeUri: s3://sam-deployment-307390403458/d92569b964926a788d8848435922bbca
       Handler: main
       Runtime: go1.x
       Events:
@@ -94,7 +107,7 @@ Resources:
   GetFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://sam-deployment-307390403458/1f36dff7a4ec7d0d703bbe1b26a66e2a
+      CodeUri: s3://sam-deployment-307390403458/486c4e371ad9848556e6fe8fffb4fd28
       Handler: main
       Runtime: go1.x
       Events:
@@ -113,7 +126,7 @@ Resources:
   RequestCreationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://sam-deployment-307390403458/f655e0f63b1bcdf35862d6325a9319b5
+      CodeUri: s3://sam-deployment-307390403458/c39c1a109399d5dd7c0ed85069bc2e5f
       Handler: main
       Runtime: go1.x
       Events:
@@ -126,19 +139,17 @@ Resources:
       - DynamoDBCrudPolicy:
           TableName:
             Ref: ThumbnailsDynamoDBTable
-      - DynamoDBReadPolicy:
+      - DynamoDBCrudPolicy:
           TableName:
             Ref: QuotaDynamoDBTable
-      - SNSPublishMessagePolicy:
+      - SNSCrudPolicy:
           TopicName: thumbnailr-creation-requests
   CreateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://sam-deployment-307390403458/bd2d8d5ed3037ce41840782bcc204919
+      CodeUri: s3://sam-deployment-307390403458/7b5a1f4c28612e8c91b4709ced7c0077
       Handler: main
       Runtime: go1.x
-      MemorySize: 512
-      Timeout: 5
       Events:
         LogEntryEvent:
           Type: SNS
@@ -158,3 +169,8 @@ Resources:
       - S3CrudPolicy:
           BucketName:
             Ref: ThumbnailStoreS3Bucket
+Outputs:
+  ApiGatewayURL:
+    Description: API Gateway URL for Production Stage
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/

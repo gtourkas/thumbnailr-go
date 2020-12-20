@@ -6,6 +6,7 @@ Description: >
 Globals:
   Function:
     Timeout: 600
+    MemorySize: 192
 
 Resources:
 
@@ -86,6 +87,19 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref ThumbnailsDynamoDBTable
 
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./build/auth/
+      Handler: main
+      Runtime: go1.x
+      Events:
+        AuthEvent:
+          Type: Api
+          Properties:
+            Path: /token
+            Method: POST
+
   CheckCreationFunctionApiGw:
     Type: AWS::Serverless::Function
     Properties:
@@ -135,9 +149,9 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ThumbnailsDynamoDBTable
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref QuotaDynamoDBTable
-        - SNSPublishMessagePolicy:
+        - SNSCrudPolicy:
             TopicName: "thumbnailr-creation-requests"
 
   CreateFunction:
@@ -146,8 +160,6 @@ Resources:
       CodeUri: ./build/create/
       Handler: main
       Runtime: go1.x
-      MemorySize: 512
-      Timeout: 5
       Events:
         LogEntryEvent:
           Type: SNS
@@ -163,3 +175,7 @@ Resources:
         - S3CrudPolicy:
             BucketName: !Ref ThumbnailStoreS3Bucket
 
+Outputs:
+  ApiGatewayURL:
+    Description: 'API Gateway URL for Production Stage'
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'

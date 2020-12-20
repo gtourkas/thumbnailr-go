@@ -7,3 +7,7 @@ fi
 sam package --template-file template.yaml --s3-bucket "sam-deployment-$ACCOUNTID" --output-template-file packaged.yaml
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 sam deploy --stack-name thumbnailr --template-file packaged.yaml --capabilities CAPABILITY_IAM
+
+aws cloudformation describe-stacks --stack-name thumbnailr \
+    --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayURL`].OutputValue' \
+    --output text
