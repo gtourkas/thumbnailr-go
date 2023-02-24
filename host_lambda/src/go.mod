@@ -11,7 +11,7 @@ require (
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/mattn/go-isatty v0.0.9 // indirect
 	github.com/pkg/errors v0.8.1
-	golang.org/x/net v0.0.0-20191105084925-a882066a44e0 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	gopkg.in/oauth2.v3 v3.12.0
 	thumbnailr/app v0.0.0
 	thumbnailr/bus_sns v0.0.0
